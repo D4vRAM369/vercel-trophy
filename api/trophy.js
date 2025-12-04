@@ -42,26 +42,26 @@ const themes = {
 async function fetchGitHub(username) {
   const user = await fetch(
     `https://api.github.com/users/${username}`
-  ).then((r) => r.json());
+  ).then(r => r.json());
 
   const repos = await fetch(
     `https://api.github.com/users/${username}/repos?per_page=100`
-  ).then((r) => r.json());
+  ).then(r => r.json());
 
   const events = await fetch(
     `https://api.github.com/users/${username}/events`
-  ).then((r) => r.json());
+  ).then(r => r.json());
 
   return { user, repos, events };
 }
 
 // ----------------------------------------------------------
-// Compute contributions
+// Compute contributions (recent events)
 // ----------------------------------------------------------
 function getContributions(events) {
   if (!Array.isArray(events)) return 0;
   return events.filter(
-    (e) => e.type === "PushEvent" || e.type === "PullRequestEvent"
+    e => e.type === "PushEvent" || e.type === "PullRequestEvent"
   ).length;
 }
 
@@ -71,15 +71,16 @@ function getContributions(events) {
 function getEngagement(events) {
   if (!Array.isArray(events)) return { score: 0, label: "Low" };
 
-  const pushes = events.filter((e) => e.type === "PushEvent").length;
-  const prs = events.filter((e) => e.type === "PullRequestEvent").length;
+  const pushes = events.filter(e => e.type === "PushEvent").length;
+  const prs = events.filter(e => e.type === "PullRequestEvent").length;
 
+  // 1 punto por push, 3 por PR
   const score = pushes * 1 + prs * 3;
 
-  const label =
-    score > 40 ? "High" :
-    score > 15 ? "Medium" :
-    "Low";
+  let label;
+  if (score > 40) label = "High";
+  else if (score > 15) label = "Medium";
+  else label = "Low";
 
   return { score, label };
 }
@@ -101,7 +102,9 @@ function getPopularRepo(repos) {
 // ----------------------------------------------------------
 function buildTrophies({ user, repos, events }) {
   const followers = user.followers;
-  const stars = repos.reduce((a, r) => a + r.stargazers_count, 0);
+  const stars = Array.isArray(repos)
+    ? repos.reduce((a, r) => a + (r.stargazers_count || 0), 0)
+    : 0;
   const reposCount = user.public_repos;
   const accountAge =
     new Date().getFullYear() - new Date(user.created_at).getFullYear();
@@ -112,17 +115,20 @@ function buildTrophies({ user, repos, events }) {
   const activeDeveloper = contributions > 20;
   const starCollector =
     stars >= 100 ? "Level 3" :
-    stars >= 50 ? "Level 2" :
-    stars >= 10 ? "Level 1" : "Level 0";
+    stars >= 50  ? "Level 2" :
+    stars >= 10  ? "Level 1" : "Level 0";
 
-  const openSourceHero = repos.some((r) => r.fork);
+  // “Open Source Hero” = tiene algún fork propio
+  const openSourceHero = Array.isArray(repos)
+    ? repos.some(r => r.fork)
+    : false;
 
   return [
-    { title: "Followers", icon: "👤", value: followers },
-    { title: "Stars", icon: "⭐", value: stars },
-    { title: "Repos", icon: "📦", value: reposCount },
-    { title: "Account Age", icon: "📅", value: `${accountAge} years` },
-    { title: "Contributions", icon: "🔧", value: contributions },
+    { title: "Followers",        icon: "👤", value: followers },
+    { title: "Stars",            icon: "⭐", value: stars },
+    { title: "Repos",            icon: "📦", value: reposCount },
+    { title: "Account Age",      icon: "📅", value: `${accountAge} years` },
+    { title: "Contributions",    icon: "🔧", value: contributions },
 
     {
       title: "Popular Repo",
@@ -144,13 +150,8 @@ function buildTrophies({ user, repos, events }) {
       value: activeDeveloper ? "Yes" : "No"
     },
 
-    { title: "Star Collector", icon: "🌟", value: starCollector },
-
-    {
-      title: "Open Source Hero",
-      icon: "💚",
-      value: openSourceHero ? "Yes" : "No"
-    }
+    { title: "Star Collector",   icon: "🌟", value: starCollector },
+    { title: "Open Source Hero", icon: "💚", value: openSourceHero ? "Yes" : "No" }
   ];
 }
 
@@ -189,14 +190,17 @@ export default async function handler(req, res) {
   res.setHeader("Content-Type", "image/svg+xml");
 
   const username = req.query.username;
-  if (!username) return res.status(400).send("Missing ?username=");
+  if (!username) {
+    res.statusCode = 400;
+    return res.end("Missing ?username=");
+  }
 
   const theme = themes.uplink;
   const columns = Number(req.query.columns) || 3;
 
   const cacheKey = username;
   const cached = getCache(cacheKey);
-  if (cached) return res.send(cached);
+  if (cached) return res.end(cached);
 
   const data = await fetchGitHub(username);
   let trophies = buildTrophies(data);
@@ -209,8 +213,8 @@ export default async function handler(req, res) {
   const cardHeight = Math.ceil(trophies.length / columns) * 95 + 40;
 
   let cardsSvg = "";
-  let x = 0,
-    y = 0;
+  let x = 0;
+  let y = 0;
 
   for (let i = 0; i < trophies.length; i++) {
     const t = trophies[i];
@@ -250,20 +254,15 @@ export default async function handler(req, res) {
 
       ${cardsSvg}
 
-  <text x="460" y="${cardHeight + 70}"
-    style="font-family:Inter,Segoe UI,system-ui,sans-serif;
-           font-size:12px; fill:#6fe86f; opacity:0.85;">
-    *Contributions & Engagement = Recent GitHub activity (last 300 events)
-  </text>
       <text x="460" y="${cardHeight + 70}"
         style="font-family:Inter,Segoe UI,system-ui,sans-serif;
                font-size:12px; fill:#6fe86f; opacity:0.85;">
-        *Contributions & Engagement = Recent GitHub activity (last 300 events)
+        *Contributions &amp; Engagement = Recent GitHub activity (last 300 events)
       </text>
     </svg>
   `;
 
   setCache(cacheKey, svg);
-  return res.send(svg);
+  return res.end(svg);
 }
 
