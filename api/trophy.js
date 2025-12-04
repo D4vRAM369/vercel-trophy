@@ -21,18 +21,17 @@ function getCache(key) {
 }
 
 // ----------------------------------------------------------
-// RAREZA -> Cada rareza tiene un color suave tipo dot
+// RAREZA (dot soft colors)
 // ----------------------------------------------------------
 const rarityColors = {
-  Common: "#b0b0b0",
+  Common: "#8a8a8a",
   Uncommon: "#6fa8ff",
   Rare: "#a06bff",
-  Epic: "#e3b341",
+  Epic: "#e1c148",
   Legendary: "#00ff9f"
 };
 
 function calculateRarity(value) {
-  // Puedes ajustar el algoritmo más tarde
   if (value >= 300) return "Legendary";
   if (value >= 100) return "Epic";
   if (value >= 50) return "Rare";
@@ -41,31 +40,23 @@ function calculateRarity(value) {
 }
 
 // ----------------------------------------------------------
-// THEMES
+// THEMES (Version D → GitHub + Glass suave)
 // ----------------------------------------------------------
 const themes = {
+  glass: {
+    bg: "#1c1c1c",
+    cardBg: "rgba(255,255,255,0.06)",
+    text: "#ffffff",
+    miniCardBg: "rgba(255,255,255,0.08)",
+    border: "rgba(255,255,255,0.2)"
+  },
+
   default: {
     bg: "#1e1e1e",
-    cardBg: "#2a2a2a",
+    cardBg: "#2b2b2b",
     text: "#ffffff",
-    miniCardBg: "#333333",
-    border: "#444444"
-  },
-
-  glass: {
-    bg: "url(#glass-bg)",
-    cardBg: "rgba(255,255,255,0.15)",
-    text: "#2a2a2a",
-    miniCardBg: "rgba(255,255,255,0.25)",
-    border: "rgba(255,255,255,0.6)"
-  },
-
-  matrix: {
-    bg: "#0d0d0d",
-    cardBg: "#101414",
-    text: "#00ff9f",
-    miniCardBg: "rgba(0,255,159,0.08)",
-    border: "#00ff9f"
+    miniCardBg: "#353535",
+    border: "#404040"
   }
 };
 
@@ -87,15 +78,34 @@ async function fetchGitHub(username) {
 }
 
 // ----------------------------------------------------------
-// Scrapping-like contribution activity via events
+// Compute contributions
 // ----------------------------------------------------------
 function getContributions(events) {
   if (!Array.isArray(events)) return 0;
-  return events.filter(e => e.type === "PushEvent" || e.type === "PullRequestEvent").length;
+  return events.filter(e =>
+    e.type === "PushEvent" || e.type === "PullRequestEvent"
+  ).length;
 }
 
 // ----------------------------------------------------------
-// Detect popular repo
+// Trending Activity → New Rising Star
+// ----------------------------------------------------------
+function getRisingStar(events) {
+  if (!Array.isArray(events)) return { value: 0, label: "Low Activity" };
+
+  const recentActivity = events.filter(e =>
+    e.type === "PushEvent" || e.type === "PullRequestEvent"
+  ).length;
+
+  let label = "Low Activity";
+  if (recentActivity >= 6 && recentActivity <= 20) label = "Active Growth";
+  if (recentActivity > 20) label = "Rising Star";
+
+  return { value: recentActivity, label };
+}
+
+// ----------------------------------------------------------
+// Detect most starred repo
 // ----------------------------------------------------------
 function getPopularRepo(repos) {
   if (!Array.isArray(repos) || repos.length === 0) return null;
@@ -105,7 +115,7 @@ function getPopularRepo(repos) {
 }
 
 // ----------------------------------------------------------
-// Build trophy objects
+// Build trophies
 // ----------------------------------------------------------
 function buildTrophies({ user, repos, events }) {
   const followers = user.followers;
@@ -113,15 +123,12 @@ function buildTrophies({ user, repos, events }) {
   const reposCount = user.public_repos;
   const gists = user.public_gists;
   const orgs = user.type === "Organization" ? 1 : 0;
-
   const accountAge = new Date().getFullYear() - new Date(user.created_at).getFullYear();
   const contributions = getContributions(events);
+  const rising = getRisingStar(events);
   const popularRepo = getPopularRepo(repos);
-  const risingStar = Math.floor(user.followers / 5); // simple ratio
-  
-  const activeDeveloper = contributions > 20;
-  const veteran = accountAge >= 5;
 
+  const activeDeveloper = contributions > 20;
   const starCollectorLevel =
     stars >= 100 ? "Level 3" :
     stars >= 50 ? "Level 2" :
@@ -130,109 +137,55 @@ function buildTrophies({ user, repos, events }) {
   const openSourceHero = repos.some(r => r.fork === true);
 
   return [
-    {
-      title: "Followers",
-      value: followers,
-      icon: "👤",
-      rarity: calculateRarity(followers)
-    },
-    {
-      title: "Stars",
-      value: stars,
-      icon: "⭐",
-      rarity: calculateRarity(stars)
-    },
-    {
-      title: "Repos",
-      value: reposCount,
-      icon: "📦",
-      rarity: calculateRarity(reposCount)
-    },
-    {
-      title: "Gists",
-      value: gists,
-      icon: "📝",
-      rarity: calculateRarity(gists)
-    },
-    {
-      title: "Account Age",
-      value: `${accountAge} years`,
-      icon: "📅",
-      rarity: calculateRarity(accountAge)
-    },
-    {
-      title: "Orgs",
-      value: orgs,
-      icon: "🏛️",
-      rarity: calculateRarity(orgs)
-    },
-    {
-      title: "Contributions",
-      value: contributions,
-      icon: "🔧",
-      rarity: calculateRarity(contributions)
-    },
+    { title: "Followers", icon: "👤", value: followers, rarity: calculateRarity(followers) },
+    { title: "Stars", icon: "⭐", value: stars, rarity: calculateRarity(stars) },
+    { title: "Repos", icon: "📦", value: reposCount, rarity: calculateRarity(reposCount) },
+    { title: "Account Age", icon: "📅", value: `${accountAge} years`, rarity: calculateRarity(accountAge) },
+    { title: "Contributions", icon: "🔧", value: contributions, rarity: calculateRarity(contributions) },
     {
       title: "Popular Repo",
-      value: popularRepo ? `${popularRepo.name} (${popularRepo.stargazers_count}★)` : "None",
       icon: "📈",
+      value: popularRepo ? `${popularRepo.name} (${popularRepo.stargazers_count}★)` : "None",
       rarity: popularRepo ? calculateRarity(popularRepo.stargazers_count) : "Common"
     },
-    {
-      title: "Active Developer",
-      value: activeDeveloper ? "Yes" : "No",
-      icon: "🚀",
-      rarity: activeDeveloper ? "Rare" : "Common"
-    },
-    {
-      title: "Star Collector",
-      value: starCollectorLevel,
-      icon: "🌟",
-      rarity: calculateRarity(stars)
-    },
-    {
-      title: "Veteran",
-      value: veteran ? "Yes" : "No",
-      icon: "🧙",
-      rarity: veteran ? "Epic" : "Common"
-    },
+    { title: "Active Developer", icon: "🚀", value: activeDeveloper ? "Yes" : "No", rarity: activeDeveloper ? "Rare" : "Common" },
+    { title: "Star Collector", icon: "🌟", value: starCollectorLevel, rarity: calculateRarity(stars) },
     {
       title: "Rising Star",
-      value: risingStar,
-      icon: "📈",
-      rarity: calculateRarity(risingStar)
+      icon: "📊",
+      value: `${rising.label} (${rising.value})`,
+      rarity: calculateRarity(rising.value)
     },
-    {
-      title: "Open Source Hero",
-      value: openSourceHero ? "Yes" : "No",
-      icon: "💚",
-      rarity: openSourceHero ? "Rare" : "Common"
-    }
+    { title: "Open Source Hero", icon: "💚", value: openSourceHero ? "Yes" : "No", rarity: openSourceHero ? "Rare" : "Common" }
   ];
 }
 
 // ----------------------------------------------------------
-// Render mini-cards
+// Render mini-cards (New Glass style + Font Inter)
 // ----------------------------------------------------------
 function renderMiniCard(t, theme) {
   const dotColor = rarityColors[t.rarity] || "#ccc";
 
   return `
     <g>
-      <rect width="190" height="70" rx="10"
+      <rect width="190" height="70" rx="12"
         fill="${theme.miniCardBg}"
         stroke="${theme.border}"
-        stroke-width="1.5"
+        stroke-width="1.2"
       />
       <text x="15" y="25"
-        style="font-family:sans-serif; font-size:15px; fill:${theme.text};">
+        style="font-family:Inter,Segoe UI,system-ui,sans-serif;
+               font-size:15px; fill:${theme.text};">
         ${t.icon} ${t.title}
       </text>
+
       <text x="15" y="50"
-        style="font-family:sans-serif; font-size:16px; fill:${theme.text}; font-weight:bold;">
+        style="font-family:Inter,Segoe UI,system-ui,sans-serif;
+               font-size:17px; fill:${theme.text}; font-weight:600;">
         ${t.value}
       </text>
-      <circle cx="170" cy="20" r="6" fill="${dotColor}">
+
+      <circle cx="170" cy="20" r="5" fill="${dotColor}">
         <title>${t.rarity}</title>
       </circle>
     </g>
@@ -248,8 +201,8 @@ export default async function handler(req, res) {
   const username = req.query.username;
   if (!username) return res.status(400).send("Missing ?username=");
 
-  const themeName = req.query.theme || "default";
-  const theme = themes[themeName] || themes.default;
+  const themeName = req.query.theme || "glass";
+  const theme = themes[themeName] || themes.glass;
 
   const hide = req.query.hide ? req.query.hide.split(",") : [];
   const columns = Number(req.query.columns) || 3;
@@ -262,9 +215,7 @@ export default async function handler(req, res) {
   const data = await fetchGitHub(username);
 
   if (debug) {
-    return res.send(`
-      <pre>${JSON.stringify(data, null, 2)}</pre>
-    `);
+    return res.send(`<pre>${JSON.stringify(data, null, 2)}</pre>`);
   }
 
   let trophies = buildTrophies(data);
@@ -272,59 +223,47 @@ export default async function handler(req, res) {
 
   const width = 650;
   const cardX = 20;
-  const cardY = 60;
+  const cardY = 65;
   const cardWidth = width - 40;
 
   const cardHeight = Math.ceil(trophies.length / columns) * 85 + 40;
 
-  // Mini-card positioning
   let cardsSvg = "";
   let x = 0, y = 0;
+
   for (let i = 0; i < trophies.length; i++) {
     const t = trophies[i];
     const gx = cardX + (x * 210);
     const gy = cardY + (y * 85);
 
-    cardsSvg += `
-      <g transform="translate(${gx}, ${gy})">
-        ${renderMiniCard(t, theme)}
-      </g>
-    `;
+    cardsSvg += `<g transform="translate(${gx}, ${gy})">${renderMiniCard(t, theme)}</g>`;
 
     x++;
     if (x >= columns) { x = 0; y++; }
   }
 
   const svg = `
-    <svg width="${width}" height="${cardHeight + 80}" xmlns="http://www.w3.org/2000/svg">
+    <svg width="${width}" height="${cardHeight + 90}" xmlns="http://www.w3.org/2000/svg">
 
-      <!-- Glass background definition -->
       <defs>
-        <filter id="blur" x="-20%" y="-20%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="12"/>
+        <filter id="glass-blur" x="-20%" y="-20%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="10" />
         </filter>
-
-        <linearGradient id="glass-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#d7e1ec"/>
-          <stop offset="100%" stop-color="#f3f5f7"/>
-        </linearGradient>
       </defs>
 
-      <!-- Background -->
-      <rect width="${width}" height="${cardHeight + 80}" fill="${theme.bg}"/>
+      <rect width="${width}" height="${cardHeight + 90}" fill="${theme.bg}"/>
 
-      <!-- Main card -->
       <rect x="${cardX}" y="20" width="${cardWidth}" height="${cardHeight}"
-        rx="20"
+        rx="22"
         fill="${theme.cardBg}"
         stroke="${theme.border}"
-        stroke-width="2"
-        ${themeName === "glass" ? 'filter="url(#blur)"' : ""}
+        stroke-width="1.5"
+        filter="url(#glass-blur)"
       />
 
-      <!-- Title -->
       <text x="${cardX + 20}" y="55"
-        style="font-family:sans-serif; font-size:24px; font-weight:bold; fill:${theme.text};">
+        style="font-family:Inter,Segoe UI,system-ui,sans-serif;
+               font-size:26px; font-weight:700; fill:${theme.text};">
         🏆 GitHub Trophy — ${username}
       </text>
 
