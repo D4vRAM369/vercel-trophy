@@ -220,6 +220,13 @@ export default async function handler(req, res) {
       </text>
 
       ${cardsSvg}
+
+  <text x="460" y="${cardHeight + 70}"
+    style="font-family:Inter,Segoe UI,system-ui,sans-serif;
+           font-size:12px; fill:#6fe86f; opacity:0.85;">
+    *Contributions & Engagement = Recent GitHub activity (last 300 events)
+  </text>
+      
     </svg>
   `;
 
