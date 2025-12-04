@@ -21,7 +21,7 @@ function getCache(key) {
 }
 
 // ----------------------------------------------------------
-// Uplink Green — Your Stats “signature green”
+// Uplink Green theme
 // ----------------------------------------------------------
 const UPLINK_GREEN = "#6bff7a";
 
@@ -40,23 +40,14 @@ const themes = {
 // Fetch GitHub data
 // ----------------------------------------------------------
 async function fetchGitHub(username) {
-  const user = await fetch(
-    `https://api.github.com/users/${username}`
-  ).then(r => r.json());
-
-  const repos = await fetch(
-    `https://api.github.com/users/${username}/repos?per_page=100`
-  ).then(r => r.json());
-
-  const events = await fetch(
-    `https://api.github.com/users/${username}/events`
-  ).then(r => r.json());
-
+  const user = await fetch(`https://api.github.com/users/${username}`).then(r => r.json());
+  const repos = await fetch(`https://api.github.com/users/${username}/repos?per_page=100`).then(r => r.json());
+  const events = await fetch(`https://api.github.com/users/${username}/events`).then(r => r.json());
   return { user, repos, events };
 }
 
 // ----------------------------------------------------------
-// Compute contributions (recent events)
+// Recent contributions
 // ----------------------------------------------------------
 function getContributions(events) {
   if (!Array.isArray(events)) return 0;
@@ -66,7 +57,7 @@ function getContributions(events) {
 }
 
 // ----------------------------------------------------------
-// Engagement Score (replaces Rising Star)
+// Engagement Score
 // ----------------------------------------------------------
 function getEngagement(events) {
   if (!Array.isArray(events)) return { score: 0, label: "Low" };
@@ -74,13 +65,11 @@ function getEngagement(events) {
   const pushes = events.filter(e => e.type === "PushEvent").length;
   const prs = events.filter(e => e.type === "PullRequestEvent").length;
 
-  // 1 punto por push, 3 por PR
-  const score = pushes * 1 + prs * 3;
+  const score = pushes + prs * 3;
 
-  let label;
+  let label = "Low";
   if (score > 40) label = "High";
   else if (score > 15) label = "Medium";
-  else label = "Low";
 
   return { score, label };
 }
@@ -90,10 +79,10 @@ function getEngagement(events) {
 // ----------------------------------------------------------
 function getPopularRepo(repos) {
   if (!Array.isArray(repos) || repos.length === 0) return null;
-  const sorted = [...repos].sort(
-    (a, b) => b.stargazers_count - a.stargazers_count
-  );
+
+  const sorted = [...repos].sort((a, b) => b.stargazers_count - a.stargazers_count);
   const top = sorted[0];
+
   return top && top.stargazers_count > 0 ? top : null;
 }
 
@@ -106,57 +95,41 @@ function buildTrophies({ user, repos, events }) {
     ? repos.reduce((a, r) => a + (r.stargazers_count || 0), 0)
     : 0;
   const reposCount = user.public_repos;
-  const accountAge =
-    new Date().getFullYear() - new Date(user.created_at).getFullYear();
+  const accountAge = new Date().getFullYear() - new Date(user.created_at).getFullYear();
   const contributions = getContributions(events);
   const engagement = getEngagement(events);
   const popularRepo = getPopularRepo(repos);
-
   const activeDeveloper = contributions > 20;
   const starCollector =
-    stars >= 100 ? "Level 3" :
-    stars >= 50  ? "Level 2" :
-    stars >= 10  ? "Level 1" : "Level 0";
-
-  // “Open Source Hero” = tiene algún fork propio
-  const openSourceHero = Array.isArray(repos)
-    ? repos.some(r => r.fork)
-    : false;
+      stars >= 100 ? "Level 3" :
+      stars >= 50  ? "Level 2" :
+      stars >= 10  ? "Level 1" : "Level 0";
+  const openSourceHero = Array.isArray(repos) ? repos.some(r => r.fork) : false;
 
   return [
-    { title: "Followers",        icon: "👤", value: followers },
-    { title: "Stars",            icon: "⭐", value: stars },
-    { title: "Repos",            icon: "📦", value: reposCount },
-    { title: "Account Age",      icon: "📅", value: `${accountAge} years` },
-    { title: "Contributions",    icon: "🔧", value: contributions },
-
+    { title: "Followers", icon: "👤", value: followers },
+    { title: "Stars", icon: "⭐", value: stars },
+    { title: "Repos", icon: "📦", value: reposCount },
+    { title: "Account Age", icon: "📅", value: `${accountAge} years` },
+    { title: "Contributions", icon: "🔧", value: contributions },
     {
       title: "Popular Repo",
       icon: "📈",
-      value: popularRepo
-        ? `${popularRepo.name} (${popularRepo.stargazers_count}★)`
-        : "None"
+      value: popularRepo ? `${popularRepo.name} (${popularRepo.stargazers_count}★)` : "None"
     },
-
     {
       title: "Engagement Score",
       icon: "📊",
       value: `${engagement.label} (${engagement.score})`
     },
-
-    {
-      title: "Active Developer",
-      icon: "🚀",
-      value: activeDeveloper ? "Yes" : "No"
-    },
-
-    { title: "Star Collector",   icon: "🌟", value: starCollector },
+    { title: "Active Developer", icon: "🚀", value: activeDeveloper ? "Yes" : "No" },
+    { title: "Star Collector", icon: "🌟", value: starCollector },
     { title: "Open Source Hero", icon: "💚", value: openSourceHero ? "Yes" : "No" }
   ];
 }
 
 // ----------------------------------------------------------
-// Render mini-cards — Uplink look
+// Render mini-cards
 // ----------------------------------------------------------
 function renderMiniCard(t, theme) {
   return `
@@ -165,8 +138,7 @@ function renderMiniCard(t, theme) {
         fill="${theme.miniCardBg}"
         stroke="${theme.border}"
         stroke-width="1.2"
-        style="filter: drop-shadow(0 0 6px ${theme.glow}33);"
-      />
+        style="filter: drop-shadow(0 0 6px ${theme.glow}33);" />
 
       <text x="18" y="28"
         style="font-family:Inter,Segoe UI,system-ui,sans-serif;
@@ -184,16 +156,13 @@ function renderMiniCard(t, theme) {
 }
 
 // ----------------------------------------------------------
-// Main handler
+// MAIN HANDLER — GENERATES THE SVG
 // ----------------------------------------------------------
 export default async function handler(req, res) {
   res.setHeader("Content-Type", "image/svg+xml");
 
   const username = req.query.username;
-  if (!username) {
-    res.statusCode = 400;
-    return res.end("Missing ?username=");
-  }
+  if (!username) return res.status(400).end("Missing ?username=");
 
   const theme = themes.uplink;
   const columns = Number(req.query.columns) || 3;
@@ -203,48 +172,40 @@ export default async function handler(req, res) {
   if (cached) return res.end(cached);
 
   const data = await fetchGitHub(username);
-  let trophies = buildTrophies(data);
+  const trophies = buildTrophies(data);
 
   const width = 750;
   const cardX = 20;
   const cardY = 70;
   const cardWidth = width - 40;
-
   const cardHeight = Math.ceil(trophies.length / columns) * 95 + 40;
 
+  // Generate the cards grid
   let cardsSvg = "";
-  let x = 0;
-  let y = 0;
+  let x = 0, y = 0;
 
-  for (let i = 0; i < trophies.length; i++) {
-    const t = trophies[i];
+  for (let t of trophies) {
     const gx = cardX + x * 245;
     const gy = cardY + y * 95;
 
-    cardsSvg += `<g transform="translate(${gx}, ${gy})">${renderMiniCard(
-      t,
-      theme
-    )}</g>`;
+    cardsSvg += `<g transform="translate(${gx}, ${gy})">${renderMiniCard(t, theme)}</g>`;
 
     x++;
-    if (x >= columns) {
-      x = 0;
-      y++;
-    }
+    if (x >= columns) { x = 0; y++; }
   }
 
+  // FINAL SVG
   const svg = `
-    <svg width="${width}" height="${cardHeight + 110}" xmlns="http://www.w3.org/2000/svg">
+    <svg width="${width}" height="${cardHeight + 120}" xmlns="http://www.w3.org/2000/svg">
 
-      <rect width="${width}" height="${cardHeight + 110}" fill="${theme.bg}"/>
+      <rect width="${width}" height="${cardHeight + 120}" fill="${theme.bg}"/>
 
       <rect x="${cardX}" y="20" width="${cardWidth}" height="${cardHeight}"
         rx="22"
         fill="${theme.cardBg}"
         stroke="${theme.border}"
         stroke-width="1.5"
-        style="filter: drop-shadow(0 0 18px ${theme.glow}22);"
-      />
+        style="filter: drop-shadow(0 0 18px ${theme.glow}22);" />
 
       <text x="${cardX + 25}" y="58"
         style="font-family:Inter,Segoe UI,system-ui,sans-serif;
@@ -254,11 +215,24 @@ export default async function handler(req, res) {
 
       ${cardsSvg}
 
-      <text x="460" y="${cardHeight + 70}"
+      <text
+        x="${width / 2}"
+        y="${cardHeight + 70}"
+        text-anchor="middle"
         style="font-family:Inter,Segoe UI,system-ui,sans-serif;
-               font-size:12px; fill:#6fe86f; opacity:0.85;">
-        *Contributions &amp; Engagement = Recent GitHub activity (last 300 events)
+               font-size:12px; fill:#6fe86f; opacity:0.9;">
+        Contributions & Engagement = actividad pública reciente en GitHub
       </text>
+
+      <text
+        x="${width / 2}"
+        y="${cardHeight + 88}"
+        text-anchor="middle"
+        style="font-family:Inter,Segoe UI,system-ui,sans-serif;
+               font-size:12px; fill:#6fe86f; opacity:0.9;">
+        (≈ últimos 300 eventos, no el total histórico de contribuciones)
+      </text>
+
     </svg>
   `;
 
