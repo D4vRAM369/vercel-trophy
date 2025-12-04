@@ -196,16 +196,17 @@ export default async function handler(req, res) {
 
   // FINAL SVG
   const svg = `
-    <svg width="${width}" height="${cardHeight + 120}" xmlns="http://www.w3.org/2000/svg">
+    <svg width="${width}" height="${cardHeight + 150}" xmlns="http://www.w3.org/2000/svg">
 
-      <rect width="${width}" height="${cardHeight + 120}" fill="${theme.bg}"/>
+      <rect width="${width}" height="${cardHeight + 150}" fill="${theme.bg}"/>
 
       <rect x="${cardX}" y="20" width="${cardWidth}" height="${cardHeight}"
         rx="22"
         fill="${theme.cardBg}"
         stroke="${theme.border}"
         stroke-width="1.5"
-        style="filter: drop-shadow(0 0 18px ${theme.glow}22);" />
+        style="filter: drop-shadow(0 0 18px ${theme.glow}22);"
+      />
 
       <text x="${cardX + 25}" y="58"
         style="font-family:Inter,Segoe UI,system-ui,sans-serif;
@@ -215,15 +216,17 @@ export default async function handler(req, res) {
 
       ${cardsSvg}
 
+      <!-- FOOTER LINE 1 -->
       <text
         x="${width / 2}"
-        y="${cardHeight + 70}"
+        y="${cardHeight + 68}"
         text-anchor="middle"
         style="font-family:Inter,Segoe UI,system-ui,sans-serif;
                font-size:12px; fill:#6fe86f; opacity:0.9;">
-        Contributions & Engagement = actividad pública reciente en GitHub
+        Contributions &amp; Engagement = actividad pública reciente en GitHub
       </text>
 
+      <!-- FOOTER LINE 2 -->
       <text
         x="${width / 2}"
         y="${cardHeight + 88}"
@@ -234,7 +237,8 @@ export default async function handler(req, res) {
       </text>
 
     </svg>
-  `;
+`;
+
 
   setCache(cacheKey, svg);
   return res.end(svg);
